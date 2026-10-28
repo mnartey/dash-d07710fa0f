@@ -230,7 +230,7 @@ footer{color:var(--muted);font-size:12px;margin:16px 0 4px;line-height:1.6}
 
   </div>
 
-  <div class="grid2">
+  <div class="grid2" style="grid-template-columns:1fr">
     <section class="panel">
       <div class="panel-h">
         <h2>Portfolio</h2>
@@ -244,11 +244,6 @@ footer{color:var(--muted);font-size:12px;margin:16px 0 4px;line-height:1.6}
         </table>
       </div>
     </section>
-    <section class="panel">
-      <div class="panel-h"><h2>Allocation</h2><span class="sub">by market value</span></div>
-      <div class="donut-wrap"><canvas id="donut"></canvas></div>
-      <div class="legend" id="legend"></div>
-    </section>
   </div>
 
   <section class="panel" id="ideasPanel" style="margin-top:12px">
@@ -257,7 +252,6 @@ footer{color:var(--muted);font-size:12px;margin:16px 0 4px;line-height:1.6}
       <span class="nfa" title="General education, not a recommendation">Ideas, not financial advice</span>
     </div>
     <div class="notice" style="margin-bottom:12px"><b>Ideas, not financial advice.</b> These are research starting points chosen to lean away from single-stock risk, not recommendations to buy or sell, and they don’t know your full finances, taxes or goals. Facts were checked on Oct 3, 2026 against company reports, fund sponsors and major news; there are no price targets. Prices below are live from the same feed as the watchlist and may be delayed. Check with a licensed advisor or tax pro before acting.</div>
-    <div id="concBox" class="conc"></div>
     <div id="ideasBox"></div>
     <div class="sub" style="margin-top:10px">“Add to watchlist” puts the ticker in your watchlist table (and the ticker tape); remove it there with ✕. “Chart” opens it in the chart panel. Role tags: <b>core</b> = broad, diversified building block; <b>growth</b> = established company, higher swings; <b>speculative</b> = small position size only, can fall hard.</div>
   </section>
@@ -673,7 +667,7 @@ function renderPortfolio(){
   $("#cCost").textContent = money(tCost);
   $("#cCount").textContent = `${rows.length} position(s), ${lots.length} lot(s)`;
   renderConcentration(priced, tMv);
-  renderDonut(priced, tMv);
+  // allocation chart removed
   labelCells($("#pfTable"));
 }
 function renderDonut(priced, tMv){

@@ -178,6 +178,7 @@ footer{color:var(--muted);font-size:12px;margin:16px 0 4px;line-height:1.6}
 .role{font-size:10px;padding:1px 7px;border-radius:999px;border:1px solid var(--line);text-transform:uppercase;letter-spacing:.4px}
 .role.core{border-color:#2b4f8f;color:#8fb6ff} .role.growth{border-color:#265c3a;color:#6ee79a} .role.speculative{border-color:#7a3a3a;color:#ff9a9a}
 .btn.added{opacity:.65;cursor:default}
+#newsChips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}#newsChips button{background:#1a2133;color:#cbd5e1;border:1px solid #2a3350;border-radius:999px;padding:4px 10px;font:inherit;font-size:12px;cursor:pointer;min-height:30px}#newsChips button.on{background:#2563eb;color:#fff;border-color:#2563eb}#newsNow{font-size:12px;color:#94a3b8;margin-bottom:6px}#newsBox>.nw{height:100%}#newsBox>.nw.hid{display:none}
 </style>
 </head>
 <body>
@@ -251,7 +252,7 @@ footer{color:var(--muted);font-size:12px;margin:16px 0 4px;line-height:1.6}
       <h2>Ideas</h2>
       <span class="nfa" title="General education, not a recommendation">Ideas, not financial advice</span>
     </div>
-    <div class="notice" style="margin-bottom:12px"><b>Ideas, not financial advice.</b> These are research starting points chosen to lean away from single-stock risk, not recommendations to buy or sell, and they don’t know your full finances, taxes or goals. Facts were checked on Oct 3, 2026 against company reports, fund sponsors and major news; there are no price targets. Prices below are live from the same feed as the watchlist and may be delayed. Check with a licensed advisor or tax pro before acting.</div>
+    <div class="notice" style="margin-bottom:12px"><b>Ideas, not financial advice.</b> Ripple effects shows companies that tend to move with your holdings through supply, customer, partner or competitor links; the other groups are starting points that lean away from single-stock risk. None are recommendations to buy or sell, and they don’t know your full finances, taxes or goals. Facts were checked on Oct 28, 2026 (Ripple effects) and Oct 3, 2026 (other groups) against company reports, fund sponsors and major news; there are no price targets. Prices below are live from the same feed as the watchlist and may be delayed. Check with a licensed advisor or tax pro before acting.</div>
     <div id="ideasBox"></div>
     <div class="sub" style="margin-top:10px">“Add to watchlist” puts the ticker in your watchlist table (and the ticker tape); remove it there with ✕. “Chart” opens it in the chart panel. Role tags: <b>core</b> = broad, diversified building block; <b>growth</b> = established company, higher swings; <b>speculative</b> = small position size only, can fall hard.</div>
   </section>
@@ -277,7 +278,7 @@ footer{color:var(--muted);font-size:12px;margin:16px 0 4px;line-height:1.6}
 
   <section class="panel" style="margin-top:12px">
     <div class="panel-h"><h2>Headlines</h2><span class="sub">TradingView news timeline for the selected ticker</span></div>
-    <div id="newsBox"></div>
+    <div id="newsChips"></div><div id="newsNow"></div><div id="newsBox"></div>
   </section>
 
   <footer id="footNote"></footer>
@@ -324,22 +325,26 @@ const LS = {wl:"td.v2.watchlist", lots:"td.v1.lots", set:"td.v1.settings", cache
 const DEFAULT_WL = ["TSLA","NVDA","SPCX","SERV"]; // LUNR sold 2026-10-14; wash-sale: no rebuy before 2026-11-14
 const DEFAULT_LOTS = []; // hosted build: no holdings baked in — import your CSV
 const DEFAULT_PROXY = "";
-// Ideas researched Oct 3, 2026. Facts only from company releases, fund sponsors and major news; no prices or targets baked in.
+// Ideas researched Oct 3, 2026; Ripple effects researched Oct 28, 2026. Facts only from company releases, fund sponsors and major news; no prices or targets baked in.
 const IDEA_GROUPS = [
-  {id:"core", title:"Core diversifiers", sub:"broad funds that spread risk across hundreds or thousands of companies"},
+  {id:"ripple", title:"Ripple effects", sub:"public companies linked to your holdings, grouped as 1st order (direct supplier, customer, partner or rival), 2nd order (one step removed) and 3rd order (further out)"},
   {id:"growth", title:"Quality growth outside Tesla", sub:"large, profitable companies whose results don’t depend on Tesla or Elon Musk"},
   {id:"theme", title:"Thematic: space, robotics, AI infrastructure", sub:"fits your interests; keep these small"}
 ];
 const IDEAS = [
-  {sym:"VTI", grp:"core", role:"core", ex:"NYSEArca", name:"Vanguard Total Stock Market ETF",
-   thesis:"One fund that owns essentially the whole US stock market, thousands of companies, so new money isn’t riding on one name. Tesla and SpaceX are in it, but only as small slices (SpaceX entered at about 0.15%).",
-   risk:"Still 100% US stocks: it falls when the market falls, and the biggest tech companies make up a large share of it."},
-  {sym:"VXUS", grp:"core", role:"core", ex:"NasdaqGS", name:"Vanguard Total International Stock ETF",
-   thesis:"Thousands of companies in developed and emerging markets outside the US. Almost no overlap with Tesla or the US tech giants.",
-   risk:"Currency swings, and it can trail the US market for years at a time."},
-  {sym:"XLV", grp:"core", role:"core", ex:"NYSEArca", name:"Health Care Select Sector SPDR ETF",
-   thesis:"US health-care leaders (drugmakers, insurers, device makers). Demand comes from aging populations and medical need, not EV or AI cycles, so it tends to move differently from Tesla.",
-   risk:"Drug-pricing politics and regulation; it can lag in tech-led rallies, and it trades above its 5-year median P/E."},
+  {"sym": "META", "grp": "ripple", "role": "1st order", "ex": "NasdaqGS", "name": "Meta Platforms · NVDA customer", "thesis": "One of the biggest buyers of Nvidia AI chips for its data centers. When Meta raises or cuts its data-center spending plans, Nvidia’s outlook tends to move with it.", "risk": "Investors can punish Meta for heavy AI spending; ad-market slowdowns and regulation can hit it regardless of Nvidia."},
+  {"sym": "SMCI", "grp": "ripple", "role": "1st order", "ex": "NasdaqGS", "name": "Super Micro Computer · NVDA servers", "thesis": "Builds servers around Nvidia GPUs, so its orders rise and fall with how many Nvidia chips customers can get and deploy.", "risk": "Thin profit margins, past accounting and filing problems, and tough competition from Dell and others. Very volatile."},
+  {"sym": "DELL", "grp": "ripple", "role": "1st order", "ex": "NYSE", "name": "Dell Technologies · NVDA servers", "thesis": "Sells AI servers built on Nvidia chips to large companies and cloud builders; its AI server backlog is a read on Nvidia demand.", "risk": "AI servers earn low margins, and much of Dell’s business is PCs, which follow a different cycle."},
+  {"sym": "PCRFF", "grp": "ripple", "role": "1st order", "ex": "OTC", "name": "Panasonic Holdings · TSLA battery cells", "thesis": "A long-time supplier of battery cells to Tesla from its Nevada and Kansas plants, so Tesla’s vehicle volumes feed directly into its battery unit.", "risk": "Battery is only part of a big conglomerate; trades over the counter in the US, so prices can lag Tokyo trading."},
+  {"sym": "ECHO", "grp": "ripple", "role": "1st order", "ex": "NasdaqGS", "name": "EchoStar · SpaceX spectrum deal", "thesis": "Sold wireless spectrum to SpaceX for about $20B, with about 261.8 million SpaceX shares due to it when the deal closes (targeted Nov 30, 2027), so its value tracks SpaceX’s.", "risk": "The deal hasn’t fully closed and has termination rights; EchoStar also carries a lot of debt and a shrinking pay-TV business."},
+  {"sym": "ASTS", "grp": "ripple", "role": "1st order", "ex": "NasdaqGS", "name": "AST SpaceMobile · SpaceX rival", "thesis": "Building satellites that connect directly to ordinary phones, the same market Starlink Direct to Cell is chasing, so news on either side moves the other.", "risk": "Not yet profitable, needs many launches and lots of money; SpaceX’s new spectrum makes competition tougher."},
+  {"sym": "DASH", "grp": "ripple", "role": "1st order", "ex": "NasdaqGS", "name": "DoorDash · SERV partner", "thesis": "Serve’s fastest-growing delivery partner: DoorDash orders on Serve robots grew nearly 50% in Q2 2026 and expanded to Washington and San Jose in August.", "risk": "Serve is tiny next to DoorDash, so DoorDash’s stock barely reacts to Serve news; the link mostly runs one way."},
+  {"sym": "UBER", "grp": "ripple", "role": "1st order", "ex": "NYSE", "name": "Uber · former SERV partner", "thesis": "Serve spun out of Uber (Postmates). Uber sold its entire Serve stake in 2026, and Serve doesn’t expect to renew the Uber Eats deal when it ends in early 2027.", "risk": "The relationship is winding down, so this mainly shows what Serve is losing; Uber also runs its own robot and robotaxi bets."},
+  {"sym": "MU", "grp": "ripple", "role": "2nd order", "ex": "NasdaqGS", "name": "Micron · memory for AI chips", "thesis": "Makes the high-bandwidth memory stacked next to AI chips like Nvidia’s, so it rides the same AI hardware wave one step removed.", "risk": "Memory prices swing hard in boom-and-bust cycles, and it competes with SK Hynix and Samsung."},
+  {"sym": "ALB", "grp": "ripple", "role": "2nd order", "ex": "NYSE", "name": "Albemarle · lithium", "thesis": "One of the largest lithium producers. Lithium goes into the battery cells that end up in Teslas and Tesla Megapacks, so EV and storage demand moves its prices.", "risk": "Lithium prices have crashed before on oversupply; its results swing far more than Tesla’s."},
+  {"sym": "IRDM", "grp": "ripple", "role": "2nd order", "ex": "NasdaqGS", "name": "Iridium · satellite communications", "thesis": "A satellite phone and data network that competes with Starlink for some customers, so Starlink’s growth and pricing affect how investors value it.", "risk": "Starlink’s scale and lower costs could take its customers; it’s a much smaller company."},
+  {"sym": "ASML", "grp": "ripple", "role": "3rd order", "ex": "NasdaqGS", "name": "ASML · chipmaking machines", "thesis": "Makes the machines TSMC uses to produce Nvidia’s chips. More AI chip demand means more factory spending, which shows up in ASML orders later.", "risk": "Export limits on China, and orders come in lumps that can cause sharp drops."},
+  {"sym": "CEG", "grp": "ripple", "role": "3rd order", "ex": "NasdaqGS", "name": "Constellation Energy · power for AI data centers", "thesis": "The largest US nuclear power operator, signing deals to supply power to data centers full of Nvidia chips. AI buildouts drive demand for its electricity.", "risk": "Power-price and regulatory risk, plus a lot of AI hope already priced into the stock."},
   {sym:"MSFT", grp:"growth", role:"growth", ex:"NasdaqGS", name:"Microsoft",
    thesis:"Azure cloud revenue grew 43% in the quarter ended June 30, 2026 and passed $100B for the fiscal year. Contracted future revenue (commercial RPO) rose 84% to $678B.",
    risk:"Very heavy AI data-center spending must keep paying off; results and the stock lean on continued AI demand."},
@@ -362,6 +367,7 @@ const IDEAS = [
    thesis:"About 90 robotics and automation companies in one fund. Top holdings (Oct 2, 2026) are Fanuc, Intuitive Surgical, NVIDIA, Keyence and ABB, with lots of Japanese industrial robotics.",
    risk:"Higher fee than an index fund, overlaps with NVDA/ISRG, holds about 2% Tesla, and themes can lag the market for long stretches."}
 ];
+const RIPPLE_OF = {META:"NVDA",SMCI:"NVDA",DELL:"NVDA",PCRFF:"TSLA",ECHO:"SPCX",ASTS:"SPCX",DASH:"SERV",UBER:"SERV",MU:"NVDA",ALB:"TSLA",IRDM:"SPCX",ASML:"NVDA",CEG:"NVDA"};
 const IDEA_SYMS = IDEAS.map(i => i.sym);
 const MUSK_LINKED = ["TSLA","SPCX"]; // Tesla and SpaceX: both led and controlled by Elon Musk
 const COLORS = ["#4f8cff","#22c55e","#f59e0b","#a855f7","#ef4444","#14b8a6","#eab308","#ec4899","#64748b","#84cc16","#06b6d4","#f97316"];
@@ -692,7 +698,7 @@ function renderIdeas(){
         <div class="idea-h"><span class="sym">${esc(i.sym)}</span><span class="role ${esc(i.role)}">${esc(i.role)}</span>${flag}
           <span class="idea-px">${Number.isFinite(q.price) ? "$" + priceFmt(q.price) : "—"} <span class="${cls(pct)}">${sPct(pct)}</span></span></div>
         <div class="nm">${esc(i.name)}</div>
-        <p><b>Why:</b> ${esc(i.thesis)}</p>
+        <p><b>${i.grp==="ripple" ? "Why it moves with " + esc(RIPPLE_OF[i.sym]||"your holdings") : "Why"}:</b> ${esc(i.thesis)}</p>
         <p><b>Main risk:</b> ${esc(i.risk)}</p>
         <div class="row">
           <button class="btn small ${on ? "added" : "primary"}" data-addidea="${esc(i.sym)}" ${on ? "disabled" : ""}>${on ? "✓ On watchlist" : "+ Add to watchlist"}</button>
@@ -764,7 +770,7 @@ function labelCells(table){
   const heads = [...table.querySelectorAll("thead th")].map(th => th.textContent.trim());
   table.querySelectorAll("tbody tr, tfoot tr").forEach(tr => [...tr.children].forEach((td,i) => { if (!td.hasAttribute("colspan")) td.dataset.l = heads[i] || ""; }));
 }
-function renderAll(){ renderMarket(); renderWatchlist(); renderPortfolio(); }
+function renderAll(){ try{ newsSync(); }catch(e){} renderMarket(); renderWatchlist(); renderPortfolio(); }
 
 // ---------- TradingView widgets ----------
 function tvSymbol(s){
@@ -784,9 +790,37 @@ function tvEmbed(container, script, cfg){
   sc.src = "https://s3.tradingview.com/external-embedding/" + script; sc.textContent = JSON.stringify(cfg);
   w.appendChild(sc); container.appendChild(w);
 }
+// ---------- headlines: one timeline per holding, preloaded once, rotated ----------
+const NEWS_ROT_MS = 25000; let newsSyms = [], newsIdx = 0, newsPaused = false, newsSig = "";
+function newsSymbolList(){
+  const held = lots.map(l=>normSym(l.symbol)).filter(validSym);
+  const all = [...new Set([...held, ...watchlist])].slice(0, 10);
+  return [...all.filter(s=>s!=="TSLA"), ...all.filter(s=>s==="TSLA")];
+}
+function newsSync(){
+  const list = newsSymbolList(); const sig = list.join(","); if (sig === newsSig) return; newsSig = sig;
+  const cur = newsSyms[newsIdx]; newsSyms = list; const box = $("#newsBox");
+  for (const el of [...box.children]) if (!list.includes(el.dataset.sym)) el.remove();
+  for (const s of list) if (!box.querySelector(`.nw[data-sym="${s}"]`)){ const d = document.createElement("div"); d.className = "nw hid"; d.dataset.sym = s; box.appendChild(d); }
+  $("#newsChips").innerHTML = list.map(s=>`<button type="button" data-news="${esc(s)}">${esc(s)}</button>`).join("");
+  newsShow(Math.max(0, list.indexOf(cur)));
+}
+function newsShow(i){
+  if (!newsSyms.length) return; newsIdx = (i + newsSyms.length) % newsSyms.length; const s = newsSyms[newsIdx];
+  for (const el of $("#newsBox").children){ const on = el.dataset.sym === s; el.classList.toggle("hid", !on);
+    if (on && !el.dataset.loaded){ el.dataset.loaded = 1; tvEmbed(el, "embed-widget-timeline.js", {feedMode:"symbol", symbol:tvSymbol(s), colorTheme:"dark", isTransparent:true, displayMode:"regular", width:"100%", height:"100%", locale:"en"}); } }
+  for (const b of $("#newsChips").children) b.classList.toggle("on", b.dataset.news === s);
+  $("#newsNow").textContent = `Showing ${s} headlines (${newsIdx+1} of ${newsSyms.length})` + (newsPaused ? " · paused" : " · rotates every 25 s, hover or tap to pause");
+}
+$("#newsChips").addEventListener("click", e => { const b = e.target.closest("[data-news]"); if (b){ newsShow(newsSyms.indexOf(b.dataset.news)); } });
+for (const id of ["#newsBox","#newsChips"]){ const el = $(id);
+  el.addEventListener("mouseenter", () => { newsPaused = true; newsShow(newsIdx); });
+  el.addEventListener("mouseleave", () => { newsPaused = false; newsShow(newsIdx); });
+  el.addEventListener("touchstart", () => { newsPaused = !newsPaused; newsShow(newsIdx); }, {passive:true}); }
+setInterval(() => { if (!newsPaused && !document.hidden && newsSyms.length > 1) newsShow(newsIdx + 1); }, NEWS_ROT_MS);
 function loadChart(s){
   selected = s; save(LS.sel, s);
-  tvEmbed($("#newsBox"), "embed-widget-timeline.js", {feedMode:"symbol", symbol:tvSymbol(s), colorTheme:"dark", isTransparent:true, displayMode:"regular", width:"100%", height:"100%", locale:"en"});
+  newsSync(); if (newsSyms.includes(s)) newsShow(newsSyms.indexOf(s));
   renderWatchlist();
 }
 function loadTape(){
@@ -943,7 +977,7 @@ try{ renderLots(); renderAll(); }catch(e){ console.error(e); }
 window.__tdChartReady = () => { try{ renderAll(); }catch(e){} };
 tvSig = tvSymbol(selected) + "|" + watchlist.map(tvSymbol).join(",");
 refresh();
-setTimeout(() => { try{ loadTape(); loadChart(selected); }catch(e){} }, 1500);
+setTimeout(() => { try{ loadTape(); newsSig=""; newsSync(); newsShow(0); }catch(e){} }, 1500);
 if (window.__memStore){ const n=$("#statusNotice"); if(n && n.classList.contains("hidden")){} const p=document.createElement("div"); p.className="notice"; p.textContent="This preview can’t save. Anything you add or import here lasts until you close it."; const w=$("#statusNotice"); w&&w.parentNode.insertBefore(p,w); }
 setInterval(() => { renderMarket(); if (marketState()!=="closed" && !document.hidden && !refreshing) refresh(); }, 10000);
 document.addEventListener("visibilitychange", () => { if (!document.hidden && !refreshing) { renderMarket(); refresh(); } });

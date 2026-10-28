@@ -1,6 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script>/* storage guard: sandboxed previews block localStorage; fall back to memory */
+(function(){var ok=false;try{var k='__td_t';window.localStorage.setItem(k,'1');window.localStorage.removeItem(k);ok=true}catch(e){}
+if(!ok){var m={},mem={getItem:function(k){return Object.prototype.hasOwnProperty.call(m,k)?m[k]:null},setItem:function(k,v){m[k]=String(v)},removeItem:function(k){delete m[k]},clear:function(){m={}},key:function(i){return Object.keys(m)[i]||null},get length(){return Object.keys(m).length}};
+try{Object.defineProperty(window,'localStorage',{value:mem,configurable:true})}catch(e){}window.__memStore=true;}})();</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Trading Dashboard</title>
@@ -15,7 +19,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script async src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js" onload="window.__tdChartReady&&window.__tdChartReady()" onerror="window.__tdChartFail=1;window.__tdChartReady&&window.__tdChartReady()"></script>
 <style>
 :root{
   --bg:#0b0f17; --panel:#121826; --panel2:#182033; --line:#232c42; --text:#e6ebf5; --muted:#8b96ad;
@@ -330,8 +334,8 @@ footer{color:var(--muted);font-size:12px;margin:16px 0 4px;line-height:1.6}
 <script>
 (() => {
 "use strict";
-const LS = {wl:"td.v1.watchlist", lots:"td.v1.lots", set:"td.v1.settings", cache:"td.v1.quotes", sel:"td.v1.selected"};
-const DEFAULT_WL = ["TSLA","NVDA","LUNR","SPCX","SERV"];
+const LS = {wl:"td.v2.watchlist", lots:"td.v1.lots", set:"td.v1.settings", cache:"td.v1.quotes", sel:"td.v1.selected"};
+const DEFAULT_WL = ["TSLA","NVDA","SPCX","SERV"]; // LUNR sold 2026-10-14; wash-sale: no rebuy before 2026-11-14
 const DEFAULT_LOTS = []; // hosted build: no holdings baked in — import your CSV
 const DEFAULT_PROXY = "https://api.allorigins.win/raw?url=";
 // Ideas researched Oct 3, 2026. Facts only from company releases, fund sponsors and major news; no prices or targets baked in.
@@ -387,6 +391,11 @@ let settings = Object.assign({source:"auto", fhKey:"", avKey:"", proxy:DEFAULT_P
 let quotes = load(LS.cache, {});           // symbol -> {price, prev, high, low, name, exch, spark:[], prevSpark, ts, src}
 let selected = load(LS.sel, null) || watchlist[0] || "SPY";
 for (const s of ["TSLA","NVDA","LUNR","SPCX","SERV"]) { quotes[s] = quotes[s] || {}; quotes[s].exch = quotes[s].exch || "NasdaqGS"; }
+// SNAPSHOT-BEGIN fallback prices baked in at build time (CNBC), used only when no live/saved price exists.
+const SNAPSHOT_ASOF = "Oct 28, 2026 11:54 AM ET";
+const SNAPSHOT = {"BOTZ": {"price": 33.87, "prev": 33.48, "high": 34.0, "low": 33.79, "name": "Global X Robotics & Artificial Intelligence ETF"}, "GOOGL": {"price": 323.74, "prev": 320.58, "high": 326.41, "low": 323.09, "name": "Alphabet Class A"}, "ISRG": {"price": 447.45, "prev": 445.88, "high": 449.97, "low": 437.51, "name": "Intuitive Surgical, Inc."}, "LUNR": {"price": 11.26, "prev": 11.56, "high": 11.55, "low": 11.15, "name": "Intuitive Machines Inc"}, "MSFT": {"price": 527.36, "prev": 531.33, "high": 534.57, "low": 527.01, "name": "Microsoft Corporation"}, "NVDA": {"price": 217.07, "prev": 217.94, "high": 219.99, "low": 216.96, "name": "NVIDIA Corporation"}, "RKLB": {"price": 57.41, "prev": 58.31, "high": 59.13, "low": 56.94, "name": "Rocket Lab Corp"}, "SERV": {"price": 2.89, "prev": 2.94, "high": 2.99, "low": 2.87, "name": "Serve Robotics Inc."}, "SPCX": {"price": 144.89, "prev": 148.58, "high": 148.2, "low": 142.13, "name": "Space Exploration Technologies Corp"}, "SPY": {"price": 771.0, "prev": 769.66, "high": 771.7, "low": 769.24, "name": "SPDR S&P 500 ETF Trust"}, "TSLA": {"price": 401.78, "prev": 407.46, "high": 410.85, "low": 397.18, "name": "Tesla Inc"}, "TSM": {"price": 438.17, "prev": 436.87, "high": 440.45, "low": 436.84, "name": "Taiwan Semiconductor Manufacturing Company Limited"}, "VRT": {"price": 235.06, "prev": 208.56, "high": 243.0, "low": 228.81, "name": "Vertiv Holdings Co"}, "VTI": {"price": 378.46, "prev": 377.92, "high": 378.78, "low": 377.66, "name": "Vanguard Morningstar Total Stock Market ETF"}, "VXUS": {"price": 83.35, "prev": 83.3, "high": 83.5, "low": 83.25, "name": "Vanguard Total International Stock Index Fund ETF Shares"}, "XLV": {"price": 180.51, "prev": 179.18, "high": 181.28, "low": 177.07, "name": "State Street Health Care Select Sector SPDR ETF"}};
+for (const [s,v] of Object.entries(SNAPSHOT)) { quotes[s] = quotes[s] || {}; if (!Number.isFinite(quotes[s].price)) Object.assign(quotes[s], v, {src:"Snapshot", snapshot:true, ts:Date.parse("2026-10-28T11:54:00.893000-04:00")}); }
+// SNAPSHOT-END
 for (const i of IDEAS) { quotes[i.sym] = quotes[i.sym] || {}; quotes[i.sym].exch = quotes[i.sym].exch || i.ex; }
 let retryTimer = null, failStreak = 0, tvSig = "", lastSource = null, lastUpdate = null, refreshing = false, donutChart = null;
 const unresolved = new Set();
@@ -428,23 +437,43 @@ function renderMarket(){
 // ---------- fetch helpers ----------
 async function fetchT(url, ms=15000){
   const ctl = new AbortController(); const t = setTimeout(()=>ctl.abort(), ms);
-  try { const r = await fetch(url, {signal:ctl.signal, cache:"no-store"}); if(!r.ok) throw new Error("HTTP "+r.status); return await r.text(); }
+  try { const r = await fetch(url, {signal:ctl.signal, cache:"no-store"}); if(!r.ok) throw new Error("HTTP "+r.status); return await r.text(); } catch(e){ throw (e && e.name==="AbortError") ? new Error("timed out") : e; }
   finally { clearTimeout(t); }
 }
 async function viaProxy(target){
   const proxy = (settings.proxy||DEFAULT_PROXY).trim();
   let lastErr;
-  for (let i=0;i<4;i++){
+  for (let i=0;i<2;i++){
     const host = i%2 ? "query2" : "query1";
     const url = target.replace("query1", host) + (target.includes("?")?"&":"?") + "_=" + Date.now();
     try {
-      const txt = await fetchT(proxy + encodeURIComponent(url), 20000);
+      const txt = await fetchT(proxy + encodeURIComponent(url), 8000);
       return JSON.parse(txt);
-    } catch(e){ lastErr = e.name==="AbortError" ? new Error("proxy timed out") : e; await new Promise(r=>setTimeout(r, 800*(i+1))); }
+    } catch(e){ lastErr = e.name==="AbortError" ? new Error("proxy timed out") : e; if(i<1) await new Promise(r=>setTimeout(r, 500)); }
   }
   throw lastErr || new Error("proxy failed");
 }
 
+// CNBC: free, CORS-open, no key, batch quotes
+async function cnbcQuotes(symbols){
+  const out = {}; let ok = 0;
+  for (let i=0;i<symbols.length;i+=25){
+    const chunk = symbols.slice(i,i+25);
+    const txt = await fetchT("https://quote.cnbc.com/quote-html-webservice/restQuote/symbolType/symbol?symbols="+chunk.map(encodeURIComponent).join("%7C")+"&requestMethod=itv&noform=1&partnerId=2&fund=1&exthrs=1&output=json", 8000);
+    const arr = [].concat(JSON.parse(txt)?.FormattedQuoteResult?.FormattedQuote || []);
+    const p = v => parseFloat(String(v??"").replace(/[,%+]/g,""));
+    for (const x of arr){
+      const s = chunk.find(c => c===x.symbol) || x.symbol; const price = p(x.last);
+      if (String(x.code)!=="0" || !(price>0)) { out[s] = {missing:true}; continue; }
+      const t = Date.parse(x.last_time||"");
+      out[s] = {price, prev:p(x.previous_day_closing), high:p(x.high), low:p(x.low), name:x.name||"", ts:Number.isFinite(t)?t:Date.now(), src:"CNBC"}; ok++;
+    }
+    for (const s of chunk) if (!out[s]) out[s] = {missing:true};
+  }
+  if (!ok) throw new Error("CNBC returned no quotes");
+  return out;
+}
+const withDeadline = (p, ms, label) => Promise.race([p, new Promise((_,rej)=>setTimeout(()=>rej(new Error(label+" timed out")), ms))]);
 // Yahoo spark: batch quote + intraday closes
 async function yahooQuotes(symbols){
   const out = {};
@@ -515,13 +544,14 @@ function merge(res){
 
 async function refresh(){
   if (refreshing) return; refreshing = true;
+  try {
   $("#refreshBtn").disabled = true; $("#updPill").textContent = "Updating…";
   const syms = allSymbols();
-  const order = settings.source==="auto" ? (settings.fhKey ? ["finnhub","yahoo","alpha"] : ["yahoo","alpha"]) : [settings.source];
+  const order = settings.source==="auto" ? (settings.fhKey ? ["finnhub","cnbc","yahoo","alpha"] : ["cnbc","yahoo","alpha"]) : [settings.source];
   const errors = []; let used = null;
   for (const src of order){
     try {
-      const res = await ({yahoo:yahooQuotes, finnhub:finnhubQuotes, alpha:alphaQuotes}[src])(src==="alpha" ? allSymbols(false) : syms);
+      const res = await withDeadline(({cnbc:cnbcQuotes, yahoo:yahooQuotes, finnhub:finnhubQuotes, alpha:alphaQuotes}[src])(src==="alpha" ? allSymbols(false) : syms), src==="alpha"?25000:18000, srcName(src));
       merge(res); used = src; break;
     } catch(e){ errors.push(`${srcName(src)}: ${e.message||e}`); }
   }
@@ -540,25 +570,27 @@ async function refresh(){
   clearTimeout(retryTimer);
   if (!used && failStreak++ < 5) retryTimer = setTimeout(refresh, 90000); // auto-retry when the free proxy is busy
   if (used) failStreak = 0;
-  $("#refreshBtn").disabled = false; refreshing = false;
+  } catch(e){ try{ showStatus(null, [String(e&&e.message||e)]); }catch(_){} }
+  finally { $("#refreshBtn").disabled = false; refreshing = false; }
 }
-const srcName = s => ({yahoo:"Yahoo via proxy", finnhub:"Finnhub", alpha:"Alpha Vantage"}[s] || s);
+const srcName = s => ({cnbc:"CNBC", yahoo:"Yahoo via proxy", finnhub:"Finnhub", alpha:"Alpha Vantage"}[s] || s);
 
 function showStatus(used, errors){
   const n = $("#statusNotice");
   const fb = $("#tvFallback");
   const hasCache = Object.values(quotes).some(q => Number.isFinite(q.price));
   if (used){
-    $("#srcPill").textContent = "Source: " + srcName(used) + (used==="yahoo" ? " · unofficial, may be delayed" : used==="alpha" ? " · delayed/EOD" : " · near real-time");
+    $("#srcPill").textContent = "Source: " + srcName(used) + (used==="yahoo"||used==="cnbc" ? " · unofficial, may be delayed" : used==="alpha" ? " · delayed/EOD" : " · near real-time");
     fb.classList.add("hidden");
     const bad = [...unresolved];
     if (bad.length){ n.className = "notice"; n.innerHTML = `No quote found for <b>${esc(bad.join(", "))}</b> from ${esc(srcName(used))}. Check the ticker spelling.`; }
     else n.className = "notice hidden";
   } else {
-    $("#srcPill").textContent = "Source: none responding";
-    n.className = "notice err";
-    n.innerHTML = `Couldn’t reach a price source${hasCache ? " — showing the last saved prices (marked stale)" : ""}. ${esc(errors.join(" · "))}. The free proxy is sometimes busy; it will retry automatically in 90 s (or press Refresh), or add a free Finnhub key in ⚙ Data &amp; settings.`;
-    fb.classList.remove("hidden"); renderTvFallback();
+    const snapOnly = Object.values(quotes).some(q=>q.snapshot && Number.isFinite(q.price)) && !Object.values(quotes).some(q=>q.fetched);
+    $("#srcPill").textContent = snapOnly ? "Prices as of " + SNAPSHOT_ASOF + " (not live)" : "Source: none responding";
+    n.className = snapOnly ? "notice" : "notice err";
+    if (snapOnly) n.innerHTML = `Live prices can’t load here (this preview blocks them). Showing prices as of <b>${esc(SNAPSHOT_ASOF)}</b>. Open it on your laptop for live prices.`; else n.innerHTML = `Couldn’t reach a price source${hasCache ? " — showing the last saved prices (marked stale)" : ""}. ${esc(errors.join(" · "))}. Live prices couldn’t load right now; it will retry automatically in 90 s (or press Refresh), or add a free Finnhub key in ⚙ Data &amp; settings.`;
+    fb.classList.remove("hidden"); if(!fb.dataset.done){ fb.dataset.done=1; renderTvFallback(); }
   }
   $("#updPill").textContent = lastUpdate ? "Updated " + lastUpdate.toLocaleTimeString([], {hour:"numeric",minute:"2-digit",second:"2-digit"}) : "Not updated";
 }
@@ -591,7 +623,7 @@ function renderWatchlist(){
       const pos = q.high>q.low ? Math.min(100,Math.max(0,(q.price-q.low)/(q.high-q.low)*100)) : 50;
       rangeHtml = `<span class="range"><span>${priceFmt(q.low)} – ${priceFmt(q.high)}</span><span class="bar"><i style="left:calc(${pos}% - 1px)"></i></span></span>`;
     }
-    const flag = unresolved.has(s) ? ` <span class="tag" title="Data source returned no quote">not found</span>` : (q.price && stale(q) ? ` <span class="tag" title="Last saved price; not refreshed this session">stale</span>` : "");
+    const flag = unresolved.has(s) ? ` <span class="tag" title="Data source returned no quote">not found</span>` : (q.price && stale(q) ? (q.snapshot ? ` <span class="tag" title="Built-in snapshot; live fetch unavailable">as of ${esc(SNAPSHOT_ASOF)}</span>` : ` <span class="tag" title="Last saved price; not refreshed this session">stale</span>`) : "");
     tr.innerHTML = `<td><span class="sym">${esc(s)}</span>${flag}<span class="name">${esc(q.name||"")}</span></td>
       <td>${priceFmt(q.price)}</td><td class="${cls(ch)}">${Number.isFinite(ch)?(ch>0?"+":"")+num(ch, Math.abs(ch)<1&&q.price<1?4:2):"—"}</td>
       <td class="${cls(pct)}">${sPct(pct)}</td><td>${rangeHtml}</td><td><canvas class="spark"></canvas></td>
@@ -655,7 +687,7 @@ function renderPortfolio(){
 function renderDonut(priced, tMv){
   const labels = priced.map(r=>r.symbol), data = priced.map(r=>+r.mv.toFixed(2)), colors = labels.map((_,i)=>COLORS[i%COLORS.length]);
   $("#legend").innerHTML = priced.map((r,i)=>`<div><span><b style="background:${colors[i]}"></b>${esc(r.symbol)}</span><span>${usd0.format(r.mv)} · ${(r.mv/tMv*100).toFixed(1)}%</span></div>`).join("") || `<div class="muted">Allocation appears once prices load.</div>`;
-  if (typeof Chart === "undefined"){ $("#donut").replaceWith(Object.assign(document.createElement("div"),{className:"muted",textContent:"Chart.js couldn’t load (offline?) — see the legend below.",id:"donut"})); return; }
+  if (typeof Chart === "undefined"){ if(!window.__tdChartFail) return; $("#donut").replaceWith(Object.assign(document.createElement("div"),{className:"muted",textContent:"Chart.js couldn’t load (offline?) — see the legend below.",id:"donut"})); return; }
   if (!donutChart){
     donutChart = new Chart($("#donut"), {type:"doughnut", data:{labels, datasets:[{data, backgroundColor:colors, borderColor:"#121826", borderWidth:2}]},
       options:{responsive:true, maintainAspectRatio:false, cutout:"62%", plugins:{legend:{display:false}, tooltip:{callbacks:{label:(c)=>`${c.label}: ${usd.format(c.parsed)} (${(c.parsed/c.dataset.data.reduce((a,b)=>a+b,0)*100).toFixed(1)}%)`}}}}});
@@ -778,7 +810,7 @@ function loadTape(){
 }
 function renderTvFallback(){
   const g = $("#tvFallbackGrid"); g.innerHTML = "";
-  for (const s of watchlist.slice(0,12)){
+  for (const s of watchlist.slice(0,4)){
     const box = document.createElement("div"); box.style.height = "180px"; g.appendChild(box);
     tvEmbed(box, "embed-widget-mini-symbol-overview.js", {symbol:tvSymbol(s), width:"100%", height:"100%", locale:"en", dateRange:"1D", colorTheme:"dark", isTransparent:true, autosize:true});
   }
@@ -885,7 +917,16 @@ $("#csvFile").addEventListener("change", async e => {
   } catch(err){ alert("CSV import failed: " + err.message); }
   e.target.value = "";
 });
-$("#refreshBtn").addEventListener("click", refresh);
+$("#refreshBtn").addEventListener("click", async () => {
+  const btn = $("#refreshBtn"), pill = $("#updPill"), label = "↻ Refresh";
+  if (refreshing){ pill.textContent = "Still updating… please wait"; return; }
+  btn.textContent = "⏳ Refreshing…"; const t0 = Date.now();
+  try { await refresh(); } catch(e){}
+  if (Date.now()-t0 < 700) await new Promise(r=>setTimeout(r, 700-(Date.now()-t0)));
+  btn.textContent = label;
+  const at = new Date().toLocaleTimeString([], {hour:"numeric",minute:"2-digit"});
+  if (!lastSource) pill.textContent = "Tried " + at + " · live prices unavailable";
+});
 const dlg = $("#settingsDlg");
 $("#settingsBtn").addEventListener("click", () => {
   $("#srcSel").value = settings.source; $("#fhKey").value = settings.fhKey; $("#avKey").value = settings.avKey; $("#proxyIn").value = settings.proxy; $("#testOut").textContent = "";
@@ -914,9 +955,12 @@ $("#resetAll").addEventListener("click", () => {
 
 // ---------- boot ----------
 $("#footNote").innerHTML = `Prices are informational only and may be delayed or wrong; verify in your brokerage before trading. Day P&amp;L uses (last − previous close) × shares for every lot, including lots bought today. Market-hours check uses New York time and doesn’t know exchange holidays. Watchlist, holdings and keys live in this browser’s localStorage only — use Export CSV as a backup. On iPhone: Share → Add to Home Screen. Safari can clear data for websites you haven’t opened in 7 days; the Home Screen app is exempt, and your CSV in Files is the real backup.`;
-renderLots(); renderAll(); loadTape(); loadChart(selected);
+try{ renderLots(); renderAll(); }catch(e){ console.error(e); }
+window.__tdChartReady = () => { try{ renderAll(); }catch(e){} };
 tvSig = tvSymbol(selected) + "|" + watchlist.map(tvSymbol).join(",");
 refresh();
+setTimeout(() => { try{ loadTape(); loadChart(selected); }catch(e){} }, 1500);
+if (window.__memStore){ const n=$("#statusNotice"); if(n && n.classList.contains("hidden")){} const p=document.createElement("div"); p.className="notice"; p.textContent="This preview can’t save. Anything you add or import here lasts until you close it."; const w=$("#statusNotice"); w&&w.parentNode.insertBefore(p,w); }
 setInterval(() => { renderMarket(); if (marketState()==="open" && !document.hidden) refresh(); }, 60000);
 document.addEventListener("visibilitychange", () => { if (!document.hidden && marketState()==="open" && lastUpdate && Date.now()-lastUpdate > 60000) refresh(); });
 window.__td = {quotes:()=>quotes, refresh, holdingsAgg, unresolved:()=>[...unresolved], ideas:IDEA_SYMS};

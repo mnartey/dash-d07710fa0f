@@ -228,13 +228,6 @@ footer{color:var(--muted);font-size:12px;margin:16px 0 4px;line-height:1.6}
       </div>
     </section>
 
-    <section class="panel">
-      <div class="panel-h">
-        <h2 id="chartTitle">Chart</h2>
-        <span class="sub">TradingView chart (free widget; TradingView’s own data and delay rules)</span>
-      </div>
-      <div id="chartBox"></div>
-    </section>
   </div>
 
   <div class="grid2">
@@ -301,23 +294,22 @@ footer{color:var(--muted);font-size:12px;margin:16px 0 4px;line-height:1.6}
     <div class="panel-h"><h2>Data sources &amp; settings</h2><button class="btn small" id="closeSettings">Close</button></div>
     <div class="field"><label for="srcSel">Price source</label>
       <select id="srcSel">
-        <option value="auto">Auto (Finnhub if key set → Yahoo via proxy → Alpha Vantage)</option>
-        <option value="yahoo">Yahoo Finance via public CORS proxy (no key)</option>
+        <option value="auto">Auto (CNBC → Finnhub if key set → Alpha Vantage)</option>
+        <option value="cnbc">CNBC (no key)</option>
         <option value="finnhub">Finnhub (free key)</option>
         <option value="alpha">Alpha Vantage (free key, 25 calls/day)</option>
       </select></div>
     <div class="field"><label for="fhKey">Finnhub API key</label><input type="password" id="fhKey" placeholder="optional — recommended"></div>
     <div class="field"><label for="avKey">Alpha Vantage key</label><input type="password" id="avKey" placeholder="optional"></div>
-    <div class="field"><label for="proxySel">CORS proxy (Yahoo)</label><input type="text" id="proxyIn" placeholder="https://api.allorigins.win/raw?url="></div>
     <div class="row" style="margin-top:6px"><button class="btn primary" id="saveSettings">Save &amp; refresh</button><button class="btn" id="testSrc">Test sources</button><span class="sub" id="testOut"></span></div>
 
     <h3>How the data works (honest version)</h3>
     <ul>
-      <li><b>No key (default):</b> quotes and intraday sparklines come from Yahoo Finance’s unofficial chart API, routed through the free public proxy <code>api.allorigins.win</code> (browsers block calling Yahoo directly). It costs nothing but is best-effort: in testing it answered most requests but sometimes timed out. Only ticker symbols are sent, never your share counts or costs. US prices from Yahoo are usually close to real time during market hours but are not guaranteed; treat them as possibly delayed.</li>
+      <li><b>No key (default):</b> quotes come straight from CNBC’s public quote service (no relay). They may be slightly delayed.</li>
       <li><b>Finnhub (recommended for reliability):</b> free account, 60 calls/min. Calls Finnhub directly (it allows browser requests), no proxy. Sparklines still try Yahoo; if that fails they stay blank.</li>
       <li><b>Alpha Vantage:</b> free key but only 25 requests per day, so it’s a last resort and auto-refresh will burn through it fast. Quotes are typically end-of-day/delayed.</li>
       <li><b>TradingView widgets</b> (ticker tape, chart, headlines, fallback quote cards) use TradingView’s own data and never need a key. They can’t feed the portfolio math.</li>
-      <li>Auto-refresh runs every 60 seconds only during regular US market hours (Mon–Fri 9:30–4:00 ET; exchange holidays aren’t detected). Outside those hours, it loads once and you can press Refresh.</li>
+      <li>Auto-refresh runs every 10 seconds while this page is open, during pre-market, regular and after-hours sessions (Mon–Fri 4:00 AM–8:00 PM ET). It pauses when the page is hidden and refreshes as soon as you come back.</li>
     </ul>
     <h3>Get a free Finnhub key (2 minutes)</h3>
     <ol>
@@ -337,7 +329,7 @@ footer{color:var(--muted);font-size:12px;margin:16px 0 4px;line-height:1.6}
 const LS = {wl:"td.v2.watchlist", lots:"td.v1.lots", set:"td.v1.settings", cache:"td.v1.quotes", sel:"td.v1.selected"};
 const DEFAULT_WL = ["TSLA","NVDA","SPCX","SERV"]; // LUNR sold 2026-10-14; wash-sale: no rebuy before 2026-11-14
 const DEFAULT_LOTS = []; // hosted build: no holdings baked in — import your CSV
-const DEFAULT_PROXY = "https://api.allorigins.win/raw?url=";
+const DEFAULT_PROXY = "";
 // Ideas researched Oct 3, 2026. Facts only from company releases, fund sponsors and major news; no prices or targets baked in.
 const IDEA_GROUPS = [
   {id:"core", title:"Core diversifiers", sub:"broad funds that spread risk across hundreds or thousands of companies"},
@@ -387,7 +379,7 @@ const clone = o => JSON.parse(JSON.stringify(o));
 
 let watchlist = load(LS.wl, null) || clone(DEFAULT_WL);
 let lots = load(LS.lots, null) || clone(DEFAULT_LOTS);
-let settings = Object.assign({source:"auto", fhKey:"", avKey:"", proxy:DEFAULT_PROXY}, load(LS.set, {}));
+let settings = Object.assign({source:"auto", fhKey:"", avKey:"", proxy:""}, load(LS.set, {})); if (settings.source==="yahoo") settings.source="auto"; settings.proxy="";
 let quotes = load(LS.cache, {});           // symbol -> {price, prev, high, low, name, exch, spark:[], prevSpark, ts, src}
 let selected = load(LS.sel, null) || watchlist[0] || "SPY";
 for (const s of ["TSLA","NVDA","LUNR","SPCX","SERV"]) { quotes[s] = quotes[s] || {}; quotes[s].exch = quotes[s].exch || "NasdaqGS"; }
@@ -431,7 +423,7 @@ function marketState(){
 function renderMarket(){
   const st = marketState();
   $("#mktDot").className = "dot " + (st==="open"?"open":st==="closed"?"closed":"pre");
-  $("#mktText").textContent = {open:"US market open · auto-refresh 60s", pre:"Pre-market · auto-refresh off", post:"After hours · auto-refresh off", closed:"US market closed · auto-refresh off"}[st];
+  $("#mktText").textContent = {open:"US market open · auto-refresh 10s", pre:"Pre-market · auto-refresh 10s", post:"After hours · auto-refresh 10s", closed:"US market closed · auto-refresh off"}[st];
 }
 
 // ---------- fetch helpers ----------
@@ -441,7 +433,7 @@ async function fetchT(url, ms=15000){
   finally { clearTimeout(t); }
 }
 async function viaProxy(target){
-  const proxy = (settings.proxy||DEFAULT_PROXY).trim();
+  throw new Error("relay removed");
   let lastErr;
   for (let i=0;i<2;i++){
     const host = i%2 ? "query2" : "query1";
@@ -547,7 +539,7 @@ async function refresh(){
   try {
   $("#refreshBtn").disabled = true; $("#updPill").textContent = "Updating…";
   const syms = allSymbols();
-  const order = settings.source==="auto" ? (settings.fhKey ? ["finnhub","cnbc","yahoo","alpha"] : ["cnbc","yahoo","alpha"]) : [settings.source];
+  const order = settings.source==="auto" ? (settings.fhKey ? ["cnbc","finnhub","alpha"] : ["cnbc","alpha"]) : [settings.source];
   const errors = []; let used = null;
   for (const src of order){
     try {
@@ -556,7 +548,7 @@ async function refresh(){
     } catch(e){ errors.push(`${srcName(src)}: ${e.message||e}`); }
   }
   // sparklines best-effort from Yahoo when the primary source has none
-  if (used && used!=="yahoo"){
+  if (false){
     yahooQuotes(syms).then(res => {
       for (const [s,q] of Object.entries(res)) if (!q.missing && quotes[s]) { quotes[s].spark = q.spark; quotes[s].name = quotes[s].name || q.name; quotes[s].exch = quotes[s].exch || q.exch; }
       save(LS.cache, quotes); renderWatchlist();
@@ -564,11 +556,11 @@ async function refresh(){
   }
   lastSource = used; if (used) lastUpdate = new Date();
   const tvNow = tvSymbol(selected) + "|" + watchlist.map(tvSymbol).join(",");
-  if (used && tvNow !== tvSig){ tvSig = tvNow; loadTape(); loadChart(selected); }
+  if (used && tvNow !== tvSig){ tvSig = tvNow; loadTape(); }
   showStatus(used, errors);
   renderAll();
   clearTimeout(retryTimer);
-  if (!used && failStreak++ < 5) retryTimer = setTimeout(refresh, 90000); // auto-retry when the free proxy is busy
+  
   if (used) failStreak = 0;
   } catch(e){ try{ showStatus(null, [String(e&&e.message||e)]); }catch(_){} }
   finally { $("#refreshBtn").disabled = false; refreshing = false; }
@@ -589,10 +581,10 @@ function showStatus(used, errors){
     const snapOnly = Object.values(quotes).some(q=>q.snapshot && Number.isFinite(q.price)) && !Object.values(quotes).some(q=>q.fetched);
     $("#srcPill").textContent = snapOnly ? "Prices as of " + SNAPSHOT_ASOF + " (not live)" : "Source: none responding";
     n.className = snapOnly ? "notice" : "notice err";
-    if (snapOnly) n.innerHTML = `Live prices can’t load here (this preview blocks them). Showing prices as of <b>${esc(SNAPSHOT_ASOF)}</b>. Open it on your laptop for live prices.`; else n.innerHTML = `Couldn’t reach a price source${hasCache ? " — showing the last saved prices (marked stale)" : ""}. ${esc(errors.join(" · "))}. Live prices couldn’t load right now; it will retry automatically in 90 s (or press Refresh), or add a free Finnhub key in ⚙ Data &amp; settings.`;
+    if (snapOnly) n.innerHTML = `Live prices can’t load here (this preview blocks them). Showing prices as of <b>${esc(SNAPSHOT_ASOF)}</b>. Open it on your laptop for live prices.`; else n.innerHTML = `Couldn’t reach a price source${hasCache ? " — showing the last saved prices (marked stale)" : ""}. ${esc(errors.join(" · "))}. Live prices couldn’t load right now; it keeps retrying every 10 s (or press Refresh), or add a free Finnhub key in ⚙ Data &amp; settings.`;
     fb.classList.remove("hidden"); if(!fb.dataset.done){ fb.dataset.done=1; renderTvFallback(); }
   }
-  $("#updPill").textContent = lastUpdate ? "Updated " + lastUpdate.toLocaleTimeString([], {hour:"numeric",minute:"2-digit",second:"2-digit"}) : "Not updated";
+  $("#updPill").textContent = lastUpdate ? (used ? "Live · updated " : "Last updated ") + lastUpdate.toLocaleTimeString([], {hour:"numeric",minute:"2-digit",second:"2-digit"}) : "Not updated";
 }
 
 // ---------- sparkline ----------
@@ -800,8 +792,6 @@ function tvEmbed(container, script, cfg){
 }
 function loadChart(s){
   selected = s; save(LS.sel, s);
-  $("#chartTitle").textContent = "Chart — " + s;
-  tvEmbed($("#chartBox"), "embed-widget-advanced-chart.js", {autosize:true, symbol:tvSymbol(s), interval:"D", timezone:"America/New_York", theme:"dark", style:"1", locale:"en", allow_symbol_change:true, hide_side_toolbar:false, calendar:false, support_host:"https://www.tradingview.com"});
   tvEmbed($("#newsBox"), "embed-widget-timeline.js", {feedMode:"symbol", symbol:tvSymbol(s), colorTheme:"dark", isTransparent:true, displayMode:"regular", width:"100%", height:"100%", locale:"en"});
   renderWatchlist();
 }
@@ -881,7 +871,7 @@ $("#ideasBox").addEventListener("click", e => {
   const add = e.target.closest("[data-addidea]");
   if (add){ const s = add.dataset.addidea; if (!watchlist.includes(s)) { watchlist.push(s); save(LS.wl, watchlist); } renderWatchlist(); loadTape(); return; }
   const ch = e.target.closest("[data-chartidea]");
-  if (ch){ loadChart(ch.dataset.chartidea); $("#chartBox").scrollIntoView({behavior:"smooth", block:"center"}); }
+  if (ch){ loadChart(ch.dataset.chartidea); }
 });
 $("#pfTable").addEventListener("click", e => { const tr = e.target.closest("tr[data-sym]"); if (tr) loadChart(tr.dataset.sym); });
 let lotTimer;
@@ -929,18 +919,18 @@ $("#refreshBtn").addEventListener("click", async () => {
 });
 const dlg = $("#settingsDlg");
 $("#settingsBtn").addEventListener("click", () => {
-  $("#srcSel").value = settings.source; $("#fhKey").value = settings.fhKey; $("#avKey").value = settings.avKey; $("#proxyIn").value = settings.proxy; $("#testOut").textContent = "";
+  $("#srcSel").value = settings.source; $("#fhKey").value = settings.fhKey; $("#avKey").value = settings.avKey; $("#testOut").textContent = "";
   dlg.showModal();
 });
 $("#closeSettings").addEventListener("click", () => dlg.close());
 function readSettings(){
-  settings = {source:$("#srcSel").value, fhKey:$("#fhKey").value.trim(), avKey:$("#avKey").value.trim(), proxy:$("#proxyIn").value.trim()||DEFAULT_PROXY};
+  settings = {source:$("#srcSel").value, fhKey:$("#fhKey").value.trim(), avKey:$("#avKey").value.trim(), proxy:""};
   save(LS.set, settings);
 }
 $("#saveSettings").addEventListener("click", () => { readSettings(); dlg.close(); refresh(); });
 $("#testSrc").addEventListener("click", async () => {
   readSettings(); const out = $("#testOut"); out.textContent = "Testing…"; const res = [];
-  for (const [k,fn] of [["Yahoo via proxy",yahooQuotes],["Finnhub",finnhubQuotes],["Alpha Vantage",alphaQuotes]]){
+  for (const [k,fn] of [["CNBC",cnbcQuotes],["Finnhub",finnhubQuotes],["Alpha Vantage",alphaQuotes]]){
     if (k==="Finnhub" && !settings.fhKey){ res.push(k+": no key"); continue; }
     if (k==="Alpha Vantage" && !settings.avKey){ res.push(k+": no key"); continue; }
     try { const r = await fn(["SPY"]); res.push(k + (r.SPY && !r.SPY.missing ? ": ✓ SPY " + r.SPY.price : ": no data")); } catch(e){ res.push(k+": ✗ "+e.message); }
@@ -961,8 +951,8 @@ tvSig = tvSymbol(selected) + "|" + watchlist.map(tvSymbol).join(",");
 refresh();
 setTimeout(() => { try{ loadTape(); loadChart(selected); }catch(e){} }, 1500);
 if (window.__memStore){ const n=$("#statusNotice"); if(n && n.classList.contains("hidden")){} const p=document.createElement("div"); p.className="notice"; p.textContent="This preview can’t save. Anything you add or import here lasts until you close it."; const w=$("#statusNotice"); w&&w.parentNode.insertBefore(p,w); }
-setInterval(() => { renderMarket(); if (marketState()==="open" && !document.hidden) refresh(); }, 60000);
-document.addEventListener("visibilitychange", () => { if (!document.hidden && marketState()==="open" && lastUpdate && Date.now()-lastUpdate > 60000) refresh(); });
+setInterval(() => { renderMarket(); if (marketState()!=="closed" && !document.hidden && !refreshing) refresh(); }, 10000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden && !refreshing) { renderMarket(); refresh(); } });
 window.__td = {quotes:()=>quotes, refresh, holdingsAgg, unresolved:()=>[...unresolved], ideas:IDEA_SYMS};
 })();
 </script>

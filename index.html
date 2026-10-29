@@ -156,6 +156,11 @@ body{padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-i
   dialog{width:100%;max-width:100%;margin:auto 0 0;border-radius:14px 14px 0 0}
   .dlg-b{max-height:88vh;padding-bottom:calc(16px + env(safe-area-inset-bottom))}
 }
+#monthlyPanel .mr-grid{display:grid;grid-template-columns:1.3fr 1fr;gap:12px;align-items:start}
+#monthlyPanel table{font-size:12.5px}#monthlyPanel td,#monthlyPanel th{padding:4px 8px}
+#monthlyPanel .mini{width:100%;border-collapse:collapse}
+#monthlyPanel .mr-grid>div{min-width:0}
+@media (max-width:760px){#monthlyPanel .mr-grid{grid-template-columns:1fr}#monthlyPanel td,#monthlyPanel th{padding:3px 4px;font-size:11.5px;white-space:normal}#monthlyPanel .tbl-wrap{overflow-x:auto}}
 footer{color:var(--muted);font-size:12px;margin:16px 0 4px;line-height:1.6}
 .hidden{display:none!important}
 /* ---- Ideas panel ---- */
@@ -246,6 +251,14 @@ footer{color:var(--muted);font-size:12px;margin:16px 0 4px;line-height:1.6}
       </div>
     </section>
   </div>
+
+  <section class="panel" id="monthlyPanel" style="margin-top:12px">
+    <div class="panel-h"><h2>Monthly return</h2><span class="sub">Average monthly return = steady monthly growth that turns what you paid into today’s value</span></div>
+    <div class="mr-grid">
+      <div class="tbl-wrap"><table id="mrTable"><thead><tr><th>Holding</th><th>Months held</th><th>Avg monthly return</th><th>This month so far</th></tr></thead><tbody></tbody><tfoot></tfoot></table></div>
+      <div><div id="mrProj"></div><div id="mrHist" style="margin-top:8px"></div></div>
+    </div>
+  </section>
 
   <section class="panel" id="ideasPanel" style="margin-top:12px">
     <div class="panel-h">
@@ -774,7 +787,64 @@ function labelCells(table){
   const heads = [...table.querySelectorAll("thead th")].map(th => th.textContent.trim());
   table.querySelectorAll("tbody tr, tfoot tr").forEach(tr => [...tr.children].forEach((td,i) => { if (!td.hasAttribute("colspan")) td.dataset.l = heads[i] || ""; }));
 }
-function renderAll(){ try{ newsSync(); }catch(e){} renderMarket(); renderWatchlist(); renderPortfolio(); }
+
+// ---- Monthly return ----
+const LS_MONTHLY="td.v1.monthly", LS_MONTHLY_SYM="td.v1.monthly.sym";
+function monthsSince(d){ const t=Date.parse(d+"T12:00:00"); return Number.isFinite(t)?(Date.now()-t)/(1000*60*60*24*30.4375):NaN; }
+function ymNow(){ return new Intl.DateTimeFormat("en-CA",{timeZone:"America/New_York",year:"numeric",month:"2-digit"}).format(new Date()).slice(0,7); }
+function mrPct(x){ return Number.isFinite(x)?sPct(x*100):"—"; }
+function mwMonthly(items){ // items: {cost, m}; value V: solve sum cost*(1+r)^m = V
+  const V=items.V; const f=r=>items.list.reduce((s,i)=>s+i.cost*Math.pow(1+r,i.m),0)-V;
+  let lo=-0.99, hi=1; if(f(lo)>0||f(hi)<0) return NaN;
+  for(let k=0;k<200;k++){ const mid=(lo+hi)/2; if(f(mid)>0) hi=mid; else lo=mid; } return (lo+hi)/2;
+}
+function renderMonthly(){
+  const bySym=new Map(); const all=[]; let V=0, ok=true;
+  for(const l of lots){
+    const s=normSym(l.symbol), sh=+l.shares, c=+l.cost, q=quotes[s]||{};
+    if(!validSym(s)||!(sh>0)||!Number.isFinite(c)) continue;
+    const m=Math.max(monthsSince(l.date), 1/30.4375);
+    if(!Number.isFinite(q.price)||!Number.isFinite(m)){ ok=false; continue; }
+    const it={cost:sh*c, m, val:sh*q.price};
+    all.push(it); V+=it.val;
+    const a=bySym.get(s)||{list:[],V:0,cost:0,shares:0,price:q.price}; a.list.push(it); a.V+=it.val; a.cost+=it.cost; a.shares+=sh; bySym.set(s,a);
+  }
+  // snapshots
+  const ym=ymNow(); const hist=load(LS_MONTHLY,{})||{}; const hsym=load(LS_MONTHLY_SYM,{})||{};
+  if(all.length && ok && lastSource){ hist[ym]=Math.round(V*100)/100; const ps={}; for(const [s,a] of bySym) ps[s]=a.price; hsym[ym]=ps; save(LS_MONTHLY,hist); save(LS_MONTHLY_SYM,hsym); }
+  const months=Object.keys(hist).sort(); const prevYm=months.filter(k=>k<ym).pop();
+  const tb=$("#mrTable tbody"); tb.innerHTML="";
+  if(!all.length){ tb.innerHTML=`<tr><td colspan="4" class="muted">Waiting for holdings and prices.</td></tr>`; $("#mrTable tfoot").innerHTML=""; $("#mrProj").innerHTML=""; $("#mrHist").innerHTML=""; return; }
+  const rows=[...bySym.entries()].sort((x,y)=>y[1].V-x[1].V);
+  for(const [s,a] of rows){
+    const r=mwMonthly(a); const mAvg=a.list.reduce((t,i)=>t+i.cost*i.m,0)/a.cost;
+    const pp=prevYm&&hsym[prevYm]?hsym[prevYm][s]:NaN; const mtd=Number.isFinite(pp)&&pp>0?a.price/pp-1:NaN;
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td data-l=""><span class="sym">${esc(s)}</span></td><td data-l="Months held">${mAvg.toFixed(mAvg<10?1:0)}</td><td data-l="Avg monthly return" class="${cls(r)}">${mrPct(r)}</td><td data-l="This month so far" class="${cls(mtd)}">${mrPct(mtd)}</td>`;
+    tb.appendChild(tr);
+  }
+  const R=mwMonthly({list:all,V}); const mtdP=prevYm&&hist[prevYm]>0?V/hist[prevYm]-1:NaN;
+  $("#mrTable tfoot").innerHTML=`<tr><td data-l="">Whole portfolio</td><td data-l=""></td><td data-l="Avg monthly return" class="${cls(R)}">${mrPct(R)}</td><td data-l="This month so far" class="${cls(mtdP)}">${mrPct(mtdP)}</td></tr>`;
+  // projection
+  let ph="";
+  if(Number.isFinite(R)){
+    const h=R/2, yrs=[1,2,5];
+    const cell=(rate,y)=>money(V*Math.pow(1+rate,12*y));
+    ph=`<table class="mini"><thead><tr><th>Projection</th>${yrs.map(y=>`<th>${y} yr</th>`).join("")}</tr></thead><tbody>
+      <tr><td>At past rate (${mrPct(R)}/mo)</td>${yrs.map(y=>`<td>${cell(R,y)}</td>`).join("")}</tr>
+      <tr><td>Half that rate (${mrPct(h)}/mo)</td>${yrs.map(y=>`<td>${cell(h,y)}</td>`).join("")}</tr></tbody></table>
+      <div class="sub" style="margin-top:4px">Projection based on past returns, not a forecast. Starts from today’s value of ${money(V)}; past returns (especially early TSLA) are unlikely to repeat.</div>`;
+  }
+  $("#mrProj").innerHTML=ph;
+  // month-by-month
+  let hh="";
+  if(months.length>=2){
+    const rws=[]; for(let i=1;i<months.length;i++){ const r=hist[months[i]]/hist[months[i-1]]-1; rws.push(`<tr><td>${months[i]}${months[i]===ym?" (so far)":""}</td><td>${money(hist[months[i]])}</td><td class="${cls(r)}">${mrPct(r)}</td></tr>`); }
+    hh=`<table class="mini"><thead><tr><th>Month</th><th>Value</th><th>Return</th></tr></thead><tbody>${rws.reverse().slice(0,6).join("")}</tbody></table><div class="sub">Month return includes any shares you added that month.</div>`;
+  } else hh=`<div class="sub">Month-by-month history is building: this browser saves your portfolio value each month (first saved: ${months[0]||ym}). “This month so far” starts once last month’s value is saved, so from next month on.</div>`;
+  $("#mrHist").innerHTML=hh;
+}
+function renderAll(){ try{ newsSync(); }catch(e){} renderMarket(); renderWatchlist(); renderPortfolio(); try{ renderMonthly(); }catch(e){} }
 
 // ---------- TradingView widgets ----------
 function tvSymbol(s){

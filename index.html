@@ -471,7 +471,8 @@ async function cnbcQuotes(symbols){
       const s = chunk.find(c => c===x.symbol) || x.symbol; const price = p(x.last);
       if (String(x.code)!=="0" || !(price>0)) { out[s] = {missing:true}; continue; }
       const t = Date.parse(x.last_time||"");
-      out[s] = {price, prev:p(x.previous_day_closing), high:p(x.high), low:p(x.low), name:x.name||"", ts:Number.isFinite(t)?t:Date.now(), src:"CNBC"}; ok++;
+      const chg = p(x.change); const prev = Number.isFinite(chg) ? price - chg : p(x.previous_day_closing); // after close CNBC sets previous_day_closing = today's close; "change" keeps the session change
+      out[s] = {price, prev, high:p(x.high), low:p(x.low), name:x.name||"", ts:Number.isFinite(t)?t:Date.now(), src:"CNBC"}; ok++;
     }
     for (const s of chunk) if (!out[s]) out[s] = {missing:true};
   }
